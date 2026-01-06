@@ -1,0 +1,201 @@
+PROJECT TITLE:IndiExport
+Import–Export Marketplace Web Application
+
+-----------------------------------------
+1. PROJECT OVERVIEW
+-----------------------------------------
+This project is a web-based B2B Import–Export Marketplace that connects Indian sellers with
+domestic and international buyers on a single digital platform.
+
+The system helps sellers list products and helps buyers search, compare, and communicate
+with sellers. Instead of direct online payment, the platform focuses on inquiry handling,
+RFQ (Request for Quotation), real-time chat, shipping details, and invoice generation.
+
+The project is inspired by platforms like Alibaba and IndiaMART but designed as a
+student-friendly and scalable system.
+
+-----------------------------------------
+2. PURPOSE OF THE PROJECT
+-----------------------------------------
+• To simplify the import–export trade process
+• To provide a common platform for buyers and sellers
+• To reduce dependency on emails and phone calls
+• To enable secure communication and negotiation
+• To help buyers compare sellers and quotations
+• To support professional documentation like invoices
+
+-----------------------------------------
+3. USERS OF THE SYSTEM
+-----------------------------------------
+There are three types of users:
+
+1) Buyer
+2) Seller
+   - Basic Seller (Free)
+   - Advanced Seller (Paid)
+3) Admin
+
+-----------------------------------------
+4. BUYER FUNCTIONALITIES
+-----------------------------------------
+• Register and Login
+• Search products using keywords
+• Apply filters:
+  - Price
+  - Quantity
+  - Country
+  - Category
+• View product details and seller profile
+• Send inquiry to seller
+• Real-time chat with seller
+• Post RFQ (Request for Quotation) for bulk orders
+• View RFQ responses from multiple sellers
+• Add products to wishlist
+• View recently viewed products
+• Compare multiple products
+• Select shipping option during inquiry
+• View and download invoice
+• Give reviews and ratings to sellers/products
+• Receive notifications (chat, inquiry, RFQ response)
+
+-----------------------------------------
+5. SELLER FUNCTIONALITIES
+-----------------------------------------
+Seller has two modes:
+
+BASIC SELLER (FREE MODE)
+• Can list 3–5 products
+• Can manage products (add, edit, delete)
+• Full chat access (text)
+• Can receive and reply to inquiries
+• Can set simple shipping details
+• Can generate full invoice
+
+ADVANCED SELLER (PAID MODE)
+• Unlimited product listings
+• File sharing in chat (catalogs, documents)
+• Advanced shipping options:
+  - Courier
+  - Air freight
+  - Sea freight
+  - Pickup
+• Insurance option in shipping
+• Analytics dashboard (views, inquiries)
+• Priority visibility in search results
+
+-----------------------------------------
+6. RFQ (REQUEST FOR QUOTATION) PROCESS
+-----------------------------------------
+• Buyer posts an RFQ with:
+  - Product requirement
+  - Quantity
+  - Description
+  - Delivery country
+• RFQs are visible publicly in limited form
+• Sellers must login to send quotation
+• Multiple sellers respond with price offers
+• Buyer compares quotations and contacts seller
+
+-----------------------------------------
+7. INQUIRY & CHAT PROCESS
+-----------------------------------------
+• Buyer sends inquiry from product page
+• Seller receives notification
+• A real-time chat channel opens
+• Buyer and seller communicate using chat
+• Chat history is stored in database
+• Advanced sellers can send files in chat
+
+-----------------------------------------
+8. SHIPPING PROCESS
+-----------------------------------------
+• Seller handles shipping
+• Seller defines shipping options
+• Buyer selects shipping option during inquiry
+• Shipping details are included in invoice
+
+-----------------------------------------
+9. INVOICE SYSTEM
+-----------------------------------------
+• System generates professional invoice
+• Invoice includes:
+  - Buyer details
+  - Seller details
+  - Product details
+  - Quantity and pricing
+  - Shipping details
+  - Price in INR
+  - Converted currency value
+• Invoice can be downloaded as PDF
+• Invoice is stored permanently in system
+
+-----------------------------------------
+10. ADMIN FUNCTIONALITIES
+-----------------------------------------
+• View all buyers and sellers
+• Verify or block sellers
+• Remove illegal or fake products
+• Monitor RFQs and inquiries
+• Handle complaints and reports
+• Monitor system activity and safety
+
+-----------------------------------------
+11. NON-FUNCTIONAL FEATURES
+-----------------------------------------
+• Fast product search
+• Real-time chat using WebSocket
+• Secure login using JWT authentication
+• Encrypted passwords
+• Role-based access control
+• Scalable and cloud-ready architecture
+• User-friendly and responsive UI
+• Works on all modern browsers
+
+-----------------------------------------
+12. TECHNOLOGIES USED
+-----------------------------------------
+Frontend:
+• React.js
+• HTML, CSS
+• Axios (API calls)
+• React Router
+• Context API / Redux (state management)
+
+Backend:
+• Spring Boot
+• Spring Web
+• Spring Data JPA
+• Spring Security (JWT)
+• WebSocket (real-time chat)
+
+Database:
+• MySQL
+
+Other Tools:
+• Currency Conversion API
+• PDF generation library (iText / OpenPDF)
+• Postman (API testing)
+
+-----------------------------------------
+13. PROJECT ARCHITECTURE
+-----------------------------------------
+• Frontend (React) → Handles UI and user interaction
+• Backend (Spring Boot) → Handles business logic and security
+• Database (MySQL) → Stores all data
+• WebSocket → Real-time chat communication
+
+-----------------------------------------
+14. FUTURE ENHANCEMENTS
+-----------------------------------------
+• Online payment gateway integration
+• Logistics partner API (DHL, FedEx)
+• AI-based product recommendations
+• Multi-language support
+• Mobile application
+
+-----------------------------------------
+15. FINAL SUMMARY
+-----------------------------------------
+This project is a complete B2B Import–Export Marketplace that focuses on communication,
+inquiry handling, RFQs, shipping, and invoice generation rather than direct payments.
+It is designed to be secure, scalable, and close to real-world industry platforms.
