@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 public class InvoiceDto {
     private Long id;
     private String invoiceNumber;
+    private Long orderId;
+    private String orderNumber;
     private Long inquiryId;
     private Long sellerId;
     private String sellerBusinessName;
@@ -35,6 +37,3 @@ public class InvoiceDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-
-
-

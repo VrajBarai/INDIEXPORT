@@ -25,7 +25,8 @@ public class ProductController {
     private final UserRepository userRepository;
 
     @PostMapping
-    public ResponseEntity<ProductDto> addProduct(@RequestBody ProductDto dto, @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<ProductDto> addProduct(@RequestBody ProductDto dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return ResponseEntity.ok(productService.addProduct(user, dto));
@@ -55,7 +56,17 @@ public class ProductController {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         productService.deleteProduct(user, id);
-        return ResponseEntity.ok("Product deleted successfully");
+        return ResponseEntity.ok(Map.of("message", "Product deactivated successfully"));
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ProductDto> toggleStatus(
+            @PathVariable Long id,
+            @RequestParam boolean active,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(productService.toggleProductStatus(user, id, active));
     }
 
     @GetMapping("/countries")
@@ -76,7 +87,7 @@ public class ProductController {
             @RequestParam(required = false) String search) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         List<ProductDto> products = productService.getProductsForBuyer(user, category, search);
         return ResponseEntity.ok(products);
     }
@@ -87,10 +98,10 @@ public class ProductController {
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         // Check if user is buyer or seller
         boolean isSeller = user.getRole().name().contains("SELLER");
-        
+
         if (isSeller) {
             // Seller view - return basic DTO
             ProductDto dto = productService.getSellerProducts(user).stream()

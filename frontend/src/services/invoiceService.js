@@ -26,5 +26,10 @@ export const downloadInvoicePdf = (id) => {
     });
 };
 
+export const getBuyerInvoices = () => {
+    return api.get("/invoices/buyer");
+};
 
-
+export const getBuyerInvoice = (id) => {
+    return api.get(`/invoices/buyer/${id}`);
+};

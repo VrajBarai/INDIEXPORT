@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getProductDetails } from "../services/productService";
 import { createInquiry } from "../services/inquiryService";
+import { createDirectOrder } from "../services/orderService";
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -10,10 +11,17 @@ const ProductDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [showInquiryModal, setShowInquiryModal] = useState(false);
+    const [showOrderModal, setShowOrderModal] = useState(false);
+
     const [inquiryData, setInquiryData] = useState({
         requestedQuantity: "",
         message: "",
         shippingOption: "Courier"
+    });
+
+    const [orderData, setOrderData] = useState({
+        finalQuantity: "",
+        shippingTerms: "FOB"
     });
 
     useEffect(() => {
@@ -29,6 +37,10 @@ const ProductDetail = () => {
             setInquiryData(prev => ({
                 ...prev,
                 requestedQuantity: response.data.minQuantity || ""
+            }));
+            setOrderData(prev => ({
+                ...prev,
+                finalQuantity: response.data.minQuantity || ""
             }));
         } catch (err) {
             console.error("Fetch error:", err);
@@ -49,7 +61,6 @@ const ProductDetail = () => {
 
             await createInquiry({
                 productId: product.id,
-                requestedQuantity: parseInt(inquiryData.requestedQuantity),
                 message: inquiryData.message,
                 shippingOption: inquiryData.shippingOption
             });
@@ -59,6 +70,33 @@ const ProductDetail = () => {
         } catch (err) {
             console.error("Inquiry error:", err);
             setError(err.response?.data?.message || "Failed to send inquiry");
+        }
+    };
+
+    const handleOrderSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            setError("");
+            if (!orderData.finalQuantity || parseInt(orderData.finalQuantity) < product.minQuantity) {
+                setError(`Minimum quantity required: ${product.minQuantity}`);
+                return;
+            }
+
+            const shippingCost = 500; // Fixed placeholders as per rule to show shipping
+            await createDirectOrder({
+                productId: product.id,
+                finalQuantity: parseInt(orderData.finalQuantity),
+                finalPrice: product.price,
+                currency: "INR",
+                shippingTerms: orderData.shippingTerms,
+                shippingCost: shippingCost
+            });
+
+            setShowOrderModal(false);
+            navigate("/buyer/orders");
+        } catch (err) {
+            console.error("Order error:", err);
+            setError(err.response?.data?.message || "Failed to place order");
         }
     };
 
@@ -186,11 +224,6 @@ const ProductDetail = () => {
                                 <div>
                                     <strong>Minimum Quantity:</strong> {product.minQuantity} units
                                 </div>
-                                {product.sellingCountries && product.sellingCountries.length > 0 && (
-                                    <div>
-                                        <strong>Available in:</strong> {product.sellingCountries.join(", ")}
-                                    </div>
-                                )}
                             </div>
                         </div>
 
@@ -202,22 +235,38 @@ const ProductDetail = () => {
                         </div>
 
                         {product.remainingStock > 0 && (
-                            <button
-                                onClick={() => setShowInquiryModal(true)}
-                                style={{
-                                    width: "100%",
-                                    padding: "14px",
-                                    backgroundColor: "#1976d2",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: "6px",
-                                    cursor: "pointer",
-                                    fontSize: "16px",
-                                    fontWeight: "600"
-                                }}
-                            >
-                                Send Inquiry
-                            </button>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <button
+                                    onClick={() => setShowInquiryModal(true)}
+                                    style={{
+                                        padding: "14px",
+                                        backgroundColor: "#f1f5f9",
+                                        color: "#475569",
+                                        border: "1px solid #cbd5e1",
+                                        borderRadius: "6px",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        fontWeight: "600"
+                                    }}
+                                >
+                                    Send Inquiry
+                                </button>
+                                <button
+                                    onClick={() => setShowOrderModal(true)}
+                                    style={{
+                                        padding: "14px",
+                                        backgroundColor: "#10b981",
+                                        color: "#fff",
+                                        border: "none",
+                                        borderRadius: "6px",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        fontWeight: "600"
+                                    }}
+                                >
+                                    Place Order
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -247,30 +296,7 @@ const ProductDetail = () => {
                         }}>
                             <h2 style={{ marginTop: 0, marginBottom: "20px" }}>Send Inquiry</h2>
                             <form onSubmit={handleInquirySubmit}>
-                                <div style={{ marginBottom: "15px" }}>
-                                    <label style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
-                                        Quantity *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={inquiryData.requestedQuantity}
-                                        onChange={(e) => setInquiryData({
-                                            ...inquiryData,
-                                            requestedQuantity: e.target.value
-                                        })}
-                                        min={product.minQuantity}
-                                        required
-                                        style={{
-                                            width: "100%",
-                                            padding: "10px",
-                                            border: "1px solid #e2e8f0",
-                                            borderRadius: "6px"
-                                        }}
-                                    />
-                                    <small style={{ color: "#64748b" }}>
-                                        Minimum: {product.minQuantity} units
-                                    </small>
-                                </div>
+                                {/* Quantity Removed from Inquiry */}
 
                                 <div style={{ marginBottom: "15px" }}>
                                     <label style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
@@ -353,10 +379,139 @@ const ProductDetail = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Order Modal */}
+                {showOrderModal && (
+                    <div style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "rgba(0,0,0,0.5)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 1000
+                    }}>
+                        <div style={{
+                            backgroundColor: "#fff",
+                            padding: "30px",
+                            borderRadius: "12px",
+                            maxWidth: "500px",
+                            width: "90%",
+                            maxHeight: "90vh",
+                            overflow: "auto"
+                        }}>
+                            <h2 style={{ marginTop: 0, marginBottom: "20px" }}>Place Direct Order</h2>
+                            <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
+                                Direct orders are for immediate business commitment.
+                            </p>
+                            <form onSubmit={handleOrderSubmit}>
+                                <div style={{ marginBottom: "15px" }}>
+                                    <label style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                                        Quantity *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={orderData.finalQuantity}
+                                        onChange={(e) => setOrderData({
+                                            ...orderData,
+                                            finalQuantity: e.target.value
+                                        })}
+                                        min={product.minQuantity}
+                                        required
+                                        style={{
+                                            width: "100%",
+                                            padding: "10px",
+                                            border: "1px solid #e2e8f0",
+                                            borderRadius: "6px"
+                                        }}
+                                    />
+                                    <small style={{ color: "#64748b" }}>
+                                        Minimum: {product.minQuantity} units
+                                    </small>
+                                </div>
+
+                                <div style={{ marginBottom: "15px" }}>
+                                    <label style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                                        Shipping Terms
+                                    </label>
+                                    <select
+                                        value={orderData.shippingTerms}
+                                        onChange={(e) => setOrderData({
+                                            ...orderData,
+                                            shippingTerms: e.target.value
+                                        })}
+                                        style={{
+                                            width: "100%",
+                                            padding: "10px",
+                                            border: "1px solid #e2e8f0",
+                                            borderRadius: "6px"
+                                        }}
+                                    >
+                                        <option value="FOB">FOB - Free On Board</option>
+                                        <option value="CIF">CIF - Cost, Insurance, and Freight</option>
+                                        <option value="EXW">EXW - Ex Works</option>
+                                        <option value="DDP">DDP - Delivered Duty Paid</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ marginBottom: "25px", padding: "15px", backgroundColor: "#f8fafc", borderRadius: "8px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                                        <span>Product Amount:</span>
+                                        <strong>₹{product.price?.toFixed(2)} x {orderData.finalQuantity || 0}</strong>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#166534" }}>
+                                        <span>Shipping Charge:</span>
+                                        <strong>₹500.00</strong>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "700", fontSize: "18px", borderTop: "1px solid #e2e8f0", paddingTop: "10px" }}>
+                                        <span>FINAL TOTAL AMOUNT:</span>
+                                        <span>₹{((product.price * (orderData.finalQuantity || 0)) + 500).toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "flex", gap: "10px" }}>
+                                    <button
+                                        type="submit"
+                                        style={{
+                                            flex: 1,
+                                            padding: "12px",
+                                            backgroundColor: "#10b981",
+                                            color: "#fff",
+                                            border: "none",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                            fontWeight: "600"
+                                        }}
+                                    >
+                                        Confirm & Place Order
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowOrderModal(false)}
+                                        style={{
+                                            flex: 1,
+                                            padding: "12px",
+                                            backgroundColor: "#6b7280",
+                                            color: "#fff",
+                                            border: "none",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                            fontWeight: "600"
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
 export default ProductDetail;
-

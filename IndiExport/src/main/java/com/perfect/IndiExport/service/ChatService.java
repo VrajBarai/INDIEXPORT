@@ -42,14 +42,14 @@ public class ChatService {
     }
 
     public ChatRoomDto getOrCreateChatRoom(User user, Long inquiryId) {
-        Seller seller = sellerRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("Seller profile not found"));
-
         Inquiry inquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new RuntimeException("Inquiry not found"));
 
-        // Verify inquiry belongs to seller
-        if (!inquiry.getSeller().getId().equals(seller.getId())) {
+        // Verify access: user is either the buyer or the seller of this inquiry
+        boolean isBuyer = inquiry.getBuyer().getId().equals(user.getId());
+        boolean isSeller = inquiry.getSeller().getId().equals(user.getId());
+
+        if (!isBuyer && !isSeller) {
             throw new RuntimeException("Access denied");
         }
 
@@ -59,10 +59,24 @@ public class ChatService {
                     ChatRoom newRoom = ChatRoom.builder()
                             .inquiry(inquiry)
                             .buyer(inquiry.getBuyer())
-                            .seller(seller)
+                            .seller(inquiry.getSeller())
                             .isActive(true)
                             .build();
-                    return chatRoomRepository.save(newRoom);
+                    ChatRoom savedRoom = java.util.Objects.requireNonNull(chatRoomRepository.save(newRoom));
+
+                    // Seed initial message if present
+                    if (inquiry.getMessage() != null && !inquiry.getMessage().trim().isEmpty()) {
+                        ChatMessage initialMessage = ChatMessage.builder()
+                                .chatRoom(savedRoom)
+                                .sender(inquiry.getBuyer())
+                                .senderType(ChatMessage.MessageType.BUYER)
+                                .message(inquiry.getMessage())
+                                .isRead(false)
+                                .build();
+                        java.util.Objects.requireNonNull(chatMessageRepository.save(initialMessage));
+                    }
+
+                    return savedRoom;
                 });
 
         return mapToDto(room, user);
@@ -72,11 +86,8 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
-        // Verify access
-        Seller seller = sellerRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("Seller profile not found"));
-
-        if (!room.getSeller().getId().equals(seller.getId()) && !room.getBuyer().getId().equals(user.getId())) {
+        // Verify access: user must be either the buyer or the seller of this room
+        if (!room.getSeller().getId().equals(user.getId()) && !room.getBuyer().getId().equals(user.getId())) {
             throw new RuntimeException("Access denied");
         }
 
@@ -109,7 +120,8 @@ public class ChatService {
             Seller seller = sellerRepository.findById(user.getId())
                     .orElseThrow(() -> new RuntimeException("Seller profile not found"));
             if ("BASIC".equals(seller.getSellerMode())) {
-                throw new RuntimeException("File sharing is only available for ADVANCED sellers. Please upgrade to use this feature.");
+                throw new RuntimeException(
+                        "File sharing is only available for ADVANCED sellers. Please upgrade to use this feature.");
             }
         }
 
@@ -124,7 +136,7 @@ public class ChatService {
                 .build();
 
         ChatMessage saved = chatMessageRepository.save(message);
-        
+
         // Update room's updatedAt
         room.setUpdatedAt(java.time.LocalDateTime.now());
         chatRoomRepository.save(room);
@@ -143,8 +155,8 @@ public class ChatService {
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
         // Determine message type to mark as read (opposite of current user)
-        ChatMessage.MessageType targetType = room.getBuyer().getId().equals(user.getId()) 
-                ? ChatMessage.MessageType.SELLER 
+        ChatMessage.MessageType targetType = room.getBuyer().getId().equals(user.getId())
+                ? ChatMessage.MessageType.SELLER
                 : ChatMessage.MessageType.BUYER;
 
         List<ChatMessage> unreadMessages = chatMessageRepository.findByChatRoomIdOrderByCreatedAtAsc(chatRoomId)
@@ -172,9 +184,9 @@ public class ChatService {
 
         // Get unread count - count messages from the other party
         boolean isBuyer = room.getBuyer().getId().equals(currentUser.getId());
-        ChatMessage.MessageType targetType = isBuyer 
-            ? ChatMessage.MessageType.SELLER 
-            : ChatMessage.MessageType.BUYER;
+        ChatMessage.MessageType targetType = isBuyer
+                ? ChatMessage.MessageType.SELLER
+                : ChatMessage.MessageType.BUYER;
         long unreadCount = chatMessageRepository.countByChatRoomIdAndIsReadFalseAndSenderType(
                 room.getId(), targetType);
         dto.setUnreadCount(unreadCount);
@@ -203,6 +215,3 @@ public class ChatService {
         return dto;
     }
 }
-
-
-

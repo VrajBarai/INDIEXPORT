@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
-import { getMyInvoices, downloadInvoicePdf } from "../services/invoiceService";
+import { getMyInvoices, downloadInvoicePdf, confirmInvoice, cancelInvoice } from "../services/invoiceService";
+import { useNavigate } from "react-router-dom";
+import SellerSidebar from "../components/SellerSidebar";
 
 const InvoiceManagement = () => {
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [actionLoading, setActionLoading] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchInvoices();
@@ -40,16 +44,29 @@ const InvoiceManagement = () => {
         }
     };
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case "CONFIRMED":
-                return { bg: "#dcfce7", color: "#166534" };
-            case "DRAFT":
-                return { bg: "#fef3c7", color: "#92400e" };
-            case "CANCELLED":
-                return { bg: "#fee2e2", color: "#991b1b" };
-            default:
-                return { bg: "#f3f4f6", color: "#374151" };
+    const handleConfirmInvoice = async (id) => {
+        if (!window.confirm("Are you sure you want to confirm this invoice? This will deduct stock permanently.")) return;
+        try {
+            setActionLoading(true);
+            await confirmInvoice(id);
+            await fetchInvoices();
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to confirm invoice");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleCancelInvoice = async (id) => {
+        if (!window.confirm("Are you sure you want to cancel this invoice?")) return;
+        try {
+            setActionLoading(true);
+            await cancelInvoice(id);
+            await fetchInvoices();
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to cancel invoice");
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -65,159 +82,149 @@ const InvoiceManagement = () => {
 
     if (loading) {
         return (
-            <div style={{ textAlign: "center", padding: "50px", color: "#666" }}>
-                <div style={{ fontSize: "18px" }}>Loading Invoices...</div>
+            <div className="dashboard-container">
+                <SellerSidebar />
+                <div className="main-content" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <div className="loader"></div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div style={{ padding: "30px", backgroundColor: "#f8fafc", minHeight: "100vh" }}>
-            <div style={{ marginBottom: "30px" }}>
-                <h2 style={{ color: "#1e293b", margin: 0 }}>Invoice Management</h2>
-                <p style={{ color: "#64748b", margin: "5px 0 0" }}>
-                    View and manage your export invoices
-                </p>
-            </div>
+        <div className="dashboard-container">
+            <SellerSidebar />
 
-            {error && (
-                <div style={{
-                    backgroundColor: "#fef2f2",
-                    color: "#b91c1c",
-                    padding: "12px 20px",
-                    borderRadius: "8px",
-                    marginBottom: "20px",
-                    border: "1px solid #fee2e2"
-                }}>
-                    {error}
+            <div className="main-content">
+                <div style={{ marginBottom: "2rem" }}>
+                    <h2 style={{ margin: 0 }}>Invoice Management</h2>
+                    <p style={{ color: "var(--text-secondary)", margin: "0.25rem 0 0" }}>
+                        View and manage your export invoices
+                    </p>
                 </div>
-            )}
 
-            <div style={{
-                backgroundColor: "#fff",
-                borderRadius: "12px",
-                border: "1px solid #e2e8f0",
-                overflow: "hidden",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-            }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                    <thead>
-                        <tr style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                            <th style={thStyle}>Invoice Number</th>
-                            <th style={thStyle}>Product</th>
-                            <th style={thStyle}>Buyer</th>
-                            <th style={thStyle}>Quantity</th>
-                            <th style={thStyle}>Total Amount</th>
-                            <th style={thStyle}>Status</th>
-                            <th style={thStyle}>Date</th>
-                            <th style={thStyle}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {invoices.length === 0 ? (
-                            <tr>
-                                <td colSpan="8" style={{ textAlign: "center", padding: "60px", color: "#94a3b8" }}>
-                                    <div style={{ fontSize: "40px", marginBottom: "10px" }}>📄</div>
-                                    <p style={{ margin: 0 }}>No invoices found</p>
-                                </td>
-                            </tr>
-                        ) : (
-                            invoices.map((invoice) => {
-                                const statusStyle = getStatusColor(invoice.status);
-                                return (
-                                    <tr
-                                        key={invoice.id}
-                                        style={{
-                                            borderBottom: "1px solid #f1f5f9",
-                                            transition: "background 0.2s"
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
-                                    >
-                                        <td style={tdStyle}>
-                                            <div style={{ fontWeight: "600", color: "#1e293b" }}>
-                                                {invoice.invoiceNumber}
-                                            </div>
-                                        </td>
-                                        <td style={tdStyle}>{invoice.productName}</td>
-                                        <td style={tdStyle}>
-                                            <div>{invoice.buyerName}</div>
-                                            <div style={{ fontSize: "12px", color: "#94a3b8" }}>
-                                                {invoice.buyerCountry}
-                                            </div>
-                                        </td>
-                                        <td style={tdStyle}>{invoice.quantity} units</td>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontWeight: "700", color: "#2563eb" }}>
-                                                ₹{invoice.totalAmount?.toLocaleString('en-IN') || "0.00"}
-                                            </div>
-                                            {invoice.convertedAmount && (
-                                                <div style={{ fontSize: "12px", color: "#64748b" }}>
-                                                    {invoice.convertedAmount.toFixed(2)} {invoice.convertedCurrency}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <span style={{
-                                                backgroundColor: statusStyle.bg,
-                                                color: statusStyle.color,
-                                                padding: "4px 10px",
-                                                borderRadius: "20px",
-                                                fontSize: "12px",
-                                                fontWeight: "600"
-                                            }}>
-                                                {invoice.status}
-                                            </span>
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontSize: "13px", color: "#475569" }}>
-                                                {formatDate(invoice.createdAt)}
-                                            </div>
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <button
-                                                onClick={() => handleDownloadPdf(invoice.id, invoice.invoiceNumber)}
-                                                style={{
-                                                    padding: "6px 12px",
-                                                    borderRadius: "6px",
-                                                    border: "1px solid #2563eb",
-                                                    backgroundColor: "#fff",
-                                                    color: "#2563eb",
-                                                    cursor: "pointer",
-                                                    fontWeight: "600",
-                                                    fontSize: "13px"
-                                                }}
-                                            >
-                                                Download PDF
-                                            </button>
+                {error && (
+                    <div className="card" style={{
+                        backgroundColor: "var(--error-bg)",
+                        color: "var(--error-text)",
+                        borderColor: "var(--error)",
+                        padding: "1rem",
+                        marginBottom: "1.5rem"
+                    }}>
+                        {error}
+                    </div>
+                )}
+
+                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice Number</th>
+                                    <th>Product</th>
+                                    <th>Buyer</th>
+                                    <th>Quantity</th>
+                                    <th>Total Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {invoices.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="8" style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+                                            <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>📄</div>
+                                            <p style={{ margin: 0 }}>No invoices found</p>
                                         </td>
                                     </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                                ) : (
+                                    invoices.map((invoice) => (
+                                        <tr key={invoice.id}>
+                                            <td>
+                                                <div style={{ fontWeight: 600, color: "var(--text-main)" }}>
+                                                    {invoice.invoiceNumber}
+                                                </div>
+                                            </td>
+                                            <td>{invoice.productName}</td>
+                                            <td>
+                                                <div>{invoice.buyerName}</div>
+                                                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                                                    {invoice.buyerCountry}
+                                                </div>
+                                            </td>
+                                            <td>{invoice.quantity} units</td>
+                                            <td>
+                                                <div style={{ fontWeight: 700, color: "var(--primary)" }}>
+                                                    ₹{invoice.totalAmount?.toLocaleString('en-IN') || "0.00"}
+                                                </div>
+                                                {invoice.convertedAmount && (
+                                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                                                        {invoice.convertedAmount.toFixed(2)} {invoice.convertedCurrency}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <span className={`badge ${invoice.status === "CONFIRMED" ? "badge-active" :
+                                                    invoice.status === "DRAFT" ? "badge-warning" :
+                                                        invoice.status === "CANCELLED" ? "badge-error" : "badge-inactive"
+                                                    }`}>
+                                                    {invoice.status}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+                                                    {formatDate(invoice.createdAt)}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                                                    <button
+                                                        onClick={() => handleDownloadPdf(invoice.id, invoice.invoiceNumber)}
+                                                        className="btn btn-secondary"
+                                                        style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem" }}
+                                                    >
+                                                        PDF
+                                                    </button>
+                                                    <button
+                                                        onClick={() => navigate(`/seller/orders/${invoice.orderId}`)}
+                                                        className="btn btn-secondary"
+                                                        style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem", backgroundColor: "#f1f5f9" }}
+                                                    >
+                                                        Order
+                                                    </button>
+                                                    {invoice.status === "DRAFT" && (
+                                                        <button
+                                                            onClick={() => handleConfirmInvoice(invoice.id)}
+                                                            disabled={actionLoading}
+                                                            className="btn btn-primary"
+                                                            style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem", backgroundColor: "#1e40af" }}
+                                                        >
+                                                            Confirm
+                                                        </button>
+                                                    )}
+                                                    {invoice.status !== "CANCELLED" && (
+                                                        <button
+                                                            onClick={() => handleCancelInvoice(invoice.id)}
+                                                            disabled={actionLoading}
+                                                            className="btn btn-secondary"
+                                                            style={{ padding: "0.25rem 0.75rem", fontSize: "0.75rem", color: "#b91c1c" }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
-const thStyle = {
-    padding: "16px 20px",
-    color: "#64748b",
-    fontSize: "13px",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: "0.025em"
-};
-
-const tdStyle = {
-    padding: "16px 20px",
-    fontSize: "14px",
-    color: "#475569"
-};
-
 export default InvoiceManagement;
-
-
-

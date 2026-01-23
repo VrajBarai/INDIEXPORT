@@ -62,6 +62,10 @@ public class Product {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<ProductSellingCountry> sellingCountries = new ArrayList<>();
@@ -73,8 +77,10 @@ public class Product {
 
     public String getStockStatus() {
         int remaining = getRemainingStock();
-        if (remaining == 0) return "OUT_OF_STOCK";
-        if (remaining <= 10) return "LOW_STOCK";
+        if (remaining == 0)
+            return "OUT_OF_STOCK";
+        if (remaining <= 10)
+            return "LOW_STOCK";
         return "IN_STOCK";
     }
 }

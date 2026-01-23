@@ -43,14 +43,8 @@ public class ProductService {
         Seller seller = sellerRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("Seller profile not found"));
 
-        // Check limits for BASIC sellers
-        if ("BASIC".equals(seller.getSellerMode())) {
-            long productCount = productRepository.countBySellerId(seller.getId());
-            if (productCount >= 5) {
-                throw new RuntimeException(
-                        "Product limit reached for BASIC sellers. Upgrade to ADVANCED for unlimited listings.");
-            }
-        }
+        // Check hard limit of 5 active products
+        checkProductLimit(seller);
 
         Product product = Product.builder()
                 .seller(seller)
@@ -66,6 +60,8 @@ public class ProductService {
                 .build();
 
         Product saved = productRepository.save(product);
+        syncStatusWithStock(saved); // Force inactive if OOS initially
+        saved = productRepository.save(saved);
 
         // Save selling countries
         if (dto.getSellingCountries() != null && !dto.getSellingCountries().isEmpty()) {
@@ -74,7 +70,7 @@ public class ProductService {
                     .filter(code -> code != null && !code.trim().isEmpty())
                     .map(code -> code.toUpperCase().trim())
                     .collect(Collectors.toSet());
-            
+
             List<ProductSellingCountry> countries = new ArrayList<>();
             for (String countryCode : uniqueCountryCodes) {
                 ProductSellingCountry psc = ProductSellingCountry.builder()
@@ -84,7 +80,7 @@ public class ProductService {
                         .build();
                 countries.add(psc);
             }
-            
+
             if (!countries.isEmpty()) {
                 sellingCountryRepository.saveAll(countries);
                 saved.setSellingCountries(countries);
@@ -136,28 +132,28 @@ public class ProductService {
                     .filter(code -> code != null && !code.trim().isEmpty())
                     .map(code -> code.toUpperCase().trim())
                     .collect(Collectors.toSet());
-            
+
             // Get existing countries for this product
             List<ProductSellingCountry> existingCountries = sellingCountryRepository.findByProductId(productId);
             Set<String> existingCountryCodes = existingCountries.stream()
                     .map(ProductSellingCountry::getCountryCode)
                     .collect(Collectors.toSet());
-            
+
             // Find countries to delete (exist in DB but not in new list)
             List<ProductSellingCountry> toDelete = existingCountries.stream()
                     .filter(country -> !uniqueCountryCodes.contains(country.getCountryCode()))
                     .collect(Collectors.toList());
-            
+
             // Find countries to add (in new list but not in DB)
             Set<String> toAdd = uniqueCountryCodes.stream()
                     .filter(code -> !existingCountryCodes.contains(code))
                     .collect(Collectors.toSet());
-            
+
             // Delete countries that are no longer needed
             if (!toDelete.isEmpty()) {
                 sellingCountryRepository.deleteAll(toDelete);
             }
-            
+
             // Add new countries
             if (!toAdd.isEmpty()) {
                 List<ProductSellingCountry> newCountries = new ArrayList<>();
@@ -171,17 +167,57 @@ public class ProductService {
                 }
                 sellingCountryRepository.saveAll(newCountries);
             }
-            
+
             // Flush to ensure all changes are persisted
             entityManager.flush();
-            
+
             // Refresh product to get updated countries list
             product = productRepository.findById(productId)
                     .orElseThrow(() -> new RuntimeException("Product not found"));
         }
 
         Product updated = productRepository.save(product);
+        syncStatusWithStock(updated); // Sync status after update
+        updated = productRepository.save(updated);
+
         return mapToDto(updated);
+    }
+
+    @Transactional
+    public ProductDto toggleProductStatus(User user, Long productId, boolean active) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (product.getSeller() == null || !java.util.Objects.equals(product.getSeller().getId(), user.getId())) {
+            throw new RuntimeException("You don't have permission to modify this product");
+        }
+
+        if (active && product.getRemainingStock() == 0) {
+            throw new RuntimeException("Cannot activate product with 0 stock. Please add stock first.");
+        }
+
+        // Check limit if activating
+        if (active && !product.isActive()) {
+            checkProductLimit(product.getSeller());
+        }
+
+        product.setActive(active);
+        Product updated = productRepository.save(product);
+        return mapToDto(updated);
+    }
+
+    private void syncStatusWithStock(Product product) {
+        if (product.getRemainingStock() == 0) {
+            product.setActive(false);
+        }
+    }
+
+    private void checkProductLimit(Seller seller) {
+        long activeCount = productRepository.countBySellerIdAndActiveTrue(seller.getId());
+        if (activeCount >= 5) {
+            throw new RuntimeException(
+                    "Active product limit (5) reached. Please deactivate another product to activate or add this one.");
+        }
     }
 
     @Transactional
@@ -191,10 +227,12 @@ public class ProductService {
 
         // Verify product belongs to seller
         if (!product.getSeller().getId().equals(user.getId())) {
-            throw new RuntimeException("You don't have permission to delete this product");
+            throw new RuntimeException("You don't have permission to deactivate this product");
         }
 
-        productRepository.delete(product);
+        // Replace hard delete with soft delete (Inactive)
+        product.setActive(false);
+        productRepository.save(product);
     }
 
     @Transactional
@@ -208,6 +246,7 @@ public class ProductService {
         }
 
         product.setReservedStock(product.getReservedStock() + quantity);
+        syncStatusWithStock(product);
         productRepository.save(product);
     }
 
@@ -219,6 +258,7 @@ public class ProductService {
         int currentReserved = product.getReservedStock();
         int newReserved = Math.max(0, currentReserved - quantity);
         product.setReservedStock(newReserved);
+        syncStatusWithStock(product);
         productRepository.save(product);
     }
 
@@ -230,6 +270,7 @@ public class ProductService {
         // Deduct from both declared and reserved
         product.setDeclaredStock(Math.max(0, product.getDeclaredStock() - quantity));
         product.setReservedStock(Math.max(0, product.getReservedStock() - quantity));
+        syncStatusWithStock(product);
         productRepository.save(product);
     }
 
@@ -247,6 +288,7 @@ public class ProductService {
         // Get all active products
         List<Product> allProducts = productRepository.findAll().stream()
                 .filter(p -> "ACTIVE".equals(p.getStatus()))
+                .filter(Product::isActive) // Filter by hybrid active flag
                 .collect(Collectors.toList());
 
         // Filter by buyer's country
@@ -296,6 +338,10 @@ public class ProductService {
 
         if (!isAvailable) {
             throw new RuntimeException("This product is not available in your country");
+        }
+
+        if (!product.isActive()) {
+            throw new RuntimeException("This product is currently inactive or out of stock");
         }
 
         // Track product view
@@ -356,6 +402,7 @@ public class ProductService {
         dto.setDescription(product.getDescription());
         dto.setImageUrl(product.getImageUrl());
         dto.setStatus(product.getStatus());
+        dto.setActive(product.isActive());
         dto.setDeclaredStock(product.getDeclaredStock());
         dto.setReservedStock(product.getReservedStock());
         dto.setRemainingStock(product.getRemainingStock());

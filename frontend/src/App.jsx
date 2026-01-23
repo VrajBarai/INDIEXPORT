@@ -15,7 +15,12 @@ import InquiryDetail from "./pages/InquiryDetail";
 import RFQListing from "./pages/RFQListing";
 import RFQDetail from "./pages/RFQDetail";
 import InvoiceManagement from "./pages/InvoiceManagement";
-import AdminDashboard from "./pages/AdminDashboard"
+import AdminDashboard from "./pages/AdminDashboard";
+import BuyerOrders from "./pages/BuyerOrders";
+import BuyerOrderDetail from "./pages/BuyerOrderDetail";
+import BuyerInvoices from "./pages/BuyerInvoices";
+import SellerOrders from "./pages/SellerOrders";
+import SellerOrderDetail from "./pages/SellerOrderDetail";
 
 const App = () => {
   return (
@@ -29,12 +34,17 @@ const App = () => {
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/buyer/inquiries" element={<BuyerInquiries />} />
         <Route path="/buyer/rfqs" element={<BuyerRFQs />} />
+        <Route path="/buyer/orders" element={<BuyerOrders />} />
+        <Route path="/buyer/orders/:id" element={<BuyerOrderDetail />} />
+        <Route path="/buyer/invoices" element={<BuyerInvoices />} />
         <Route path="/seller" element={<SellerDashboard />} />
         <Route path="/seller/products" element={<ProductManagement />} />
         <Route path="/seller/inquiries" element={<InquiryInbox />} />
         <Route path="/seller/inquiries/:id" element={<InquiryDetail />} />
         <Route path="/seller/rfqs" element={<RFQListing />} />
         <Route path="/seller/rfqs/:id" element={<RFQDetail />} />
+        <Route path="/seller/orders" element={<SellerOrders />} />
+        <Route path="/seller/orders/:id" element={<SellerOrderDetail />} />
         <Route path="/seller/invoices" element={<InvoiceManagement />} />
         <Route path="/seller/onboard" element={<SellerOnboarding />} />
         <Route path="/admin" element={<AdminDashboard />} />

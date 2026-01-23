@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getInquiryDetails, replyToInquiry, updateInquiryStatus } from "../services/inquiryService";
+import { getInquiryDetails, replyToInquiry, closeInquiry } from "../services/inquiryService";
+import { createOrderFromInquiry } from "../services/orderService";
 import ChatWindow from "../components/ChatWindow";
-import InvoiceGenerator from "../components/InvoiceGenerator";
 
 const InquiryDetail = () => {
     const { id } = useParams();
@@ -13,7 +13,12 @@ const InquiryDetail = () => {
     const [success, setSuccess] = useState("");
     const [showReplyModal, setShowReplyModal] = useState(false);
     const [showChat, setShowChat] = useState(false);
-    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [showOrderModal, setShowOrderModal] = useState(false);
+    const [orderData, setOrderData] = useState({
+        finalQuantity: "",
+        finalPrice: "",
+        shippingTerms: "FOB"
+    });
     const [replyMessage, setReplyMessage] = useState("");
 
     useEffect(() => {
@@ -25,6 +30,11 @@ const InquiryDetail = () => {
             setError("");
             const res = await getInquiryDetails(id);
             setInquiry(res.data);
+            setOrderData(prev => ({
+                ...prev,
+                finalQuantity: "",
+                finalPrice: res.data.productPrice || ""
+            }));
         } catch (err) {
             console.error("Fetch error:", err);
             setError(err.response?.data?.message || "Failed to load inquiry details");
@@ -52,15 +62,37 @@ const InquiryDetail = () => {
         }
     };
 
-    const handleStatusChange = async (newStatus) => {
+    const handleCloseInquiry = async () => {
         try {
             setError("");
-            await updateInquiryStatus(id, newStatus);
-            setSuccess(`Inquiry status updated to ${newStatus}`);
+            await closeInquiry(id);
+            setSuccess("Inquiry closed successfully");
             fetchInquiry();
             setTimeout(() => setSuccess(""), 3000);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to update status");
+            setError(err.response?.data?.message || "Failed to close inquiry");
+        }
+    };
+
+    const handleCreateOrder = async (e) => {
+        e.preventDefault();
+        try {
+            setError("");
+            await createOrderFromInquiry(id, {
+                finalQuantity: parseInt(orderData.finalQuantity),
+                finalPrice: parseFloat(orderData.finalPrice),
+                currency: "INR",
+                shippingTerms: orderData.shippingTerms,
+                shippingCost: 500 // Fixed shipping cost placeholder
+            });
+            setSuccess("Order created successfully!");
+            setShowOrderModal(false);
+            fetchInquiry();
+            setTimeout(() => setSuccess(""), 3000);
+            navigate("/seller/orders");
+        } catch (err) {
+            console.error("Order error:", err);
+            setError(err.response?.data?.message || "Failed to create order");
         }
     };
 
@@ -78,10 +110,12 @@ const InquiryDetail = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case "NEW":
+            case "OPEN":
                 return { bg: "#dbeafe", color: "#1e40af" };
-            case "REPLIED":
+            case "NEGOTIATING":
                 return { bg: "#dcfce7", color: "#166534" };
+            case "CONVERTED":
+                return { bg: "#fef9c3", color: "#854d0e" };
             case "CLOSED":
                 return { bg: "#f3f4f6", color: "#374151" };
             default:
@@ -140,7 +174,7 @@ const InquiryDetail = () => {
                     }}>
                         {inquiry.status}
                     </span>
-                    {inquiry.status !== "CLOSED" && (
+                    {inquiry.status !== "CLOSED" && inquiry.status !== "CONVERTED" && (
                         <button
                             onClick={() => setShowReplyModal(true)}
                             style={{
@@ -211,12 +245,7 @@ const InquiryDetail = () => {
                                     {inquiry.productCategory || "N/A"}
                                 </div>
                             </div>
-                            <div>
-                                <label style={{ fontSize: "12px", color: "#64748b", fontWeight: "600" }}>Requested Quantity</label>
-                                <div style={{ fontSize: "16px", color: "#2563eb", fontWeight: "700", marginTop: "4px" }}>
-                                    {inquiry.requestedQuantity} units
-                                </div>
-                            </div>
+                            {/* Quantity Removed */}
                             <div>
                                 <label style={{ fontSize: "12px", color: "#64748b", fontWeight: "600" }}>Shipping Option</label>
                                 <div style={{ fontSize: "14px", color: "#475569", marginTop: "4px" }}>
@@ -297,25 +326,10 @@ const InquiryDetail = () => {
                     }}>
                         <h3 style={{ color: "#1e293b", marginTop: 0, marginBottom: "20px" }}>Actions</h3>
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {inquiry.status !== "CLOSED" && (
+                            {inquiry.status !== "CLOSED" && inquiry.status !== "CONVERTED" && (
                                 <>
                                     <button
-                                        onClick={() => handleStatusChange("REPLIED")}
-                                        disabled={inquiry.status === "REPLIED"}
-                                        style={{
-                                            padding: "10px",
-                                            borderRadius: "6px",
-                                            border: "none",
-                                            backgroundColor: inquiry.status === "REPLIED" ? "#e2e8f0" : "#2563eb",
-                                            color: inquiry.status === "REPLIED" ? "#64748b" : "#fff",
-                                            cursor: inquiry.status === "REPLIED" ? "not-allowed" : "pointer",
-                                            fontWeight: "600"
-                                        }}
-                                    >
-                                        Mark as Replied
-                                    </button>
-                                    <button
-                                        onClick={() => handleStatusChange("CLOSED")}
+                                        onClick={handleCloseInquiry}
                                         style={{
                                             padding: "10px",
                                             borderRadius: "6px",
@@ -327,6 +341,20 @@ const InquiryDetail = () => {
                                         }}
                                     >
                                         Close Inquiry
+                                    </button>
+                                    <button
+                                        onClick={() => setShowOrderModal(true)}
+                                        style={{
+                                            padding: "10px",
+                                            borderRadius: "6px",
+                                            border: "none",
+                                            backgroundColor: "#10b981",
+                                            color: "#fff",
+                                            cursor: "pointer",
+                                            fontWeight: "600"
+                                        }}
+                                    >
+                                        Create Order
                                     </button>
                                 </>
                             )}
@@ -342,21 +370,7 @@ const InquiryDetail = () => {
                                     fontWeight: "600"
                                 }}
                             >
-                                Start Chat
-                            </button>
-                            <button
-                                onClick={() => setShowInvoiceModal(true)}
-                                style={{
-                                    padding: "10px",
-                                    borderRadius: "6px",
-                                    border: "1px solid #2563eb",
-                                    backgroundColor: "#fff",
-                                    color: "#2563eb",
-                                    cursor: "pointer",
-                                    fontWeight: "600"
-                                }}
-                            >
-                                Generate Invoice
+                                Open Chat
                             </button>
                         </div>
                     </div>
@@ -465,32 +479,135 @@ const InquiryDetail = () => {
             {showChat && (
                 <div style={{
                     position: "fixed",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    zIndex: 1001,
-                    width: "90%",
-                    maxWidth: "800px"
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(15, 23, 42, 0.7)",
+                    backdropFilter: "blur(4px)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 1000
                 }}>
-                    <ChatWindow inquiryId={inquiry.id} onClose={() => setShowChat(false)} />
+                    <div style={{
+                        width: "90%",
+                        maxWidth: "800px",
+                        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
+                    }}>
+                        <ChatWindow inquiryId={inquiry.id} onClose={() => setShowChat(false)} />
+                    </div>
                 </div>
             )}
 
-            {/* Invoice Generator Modal */}
-            {showInvoiceModal && inquiry && (
-                <InvoiceGenerator
-                    inquiry={inquiry}
-                    onSuccess={() => {
-                        setSuccess("Invoice generated successfully");
-                        fetchInquiry();
-                        setTimeout(() => setSuccess(""), 3000);
-                    }}
-                    onClose={() => setShowInvoiceModal(false)}
-                />
+            {/* Order Creation Modal */}
+            {showOrderModal && (
+                <div style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(15, 23, 42, 0.7)",
+                    backdropFilter: "blur(4px)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        backgroundColor: "#fff",
+                        padding: "30px",
+                        borderRadius: "16px",
+                        width: "500px",
+                        maxWidth: "95%",
+                        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
+                    }}>
+                        <h3 style={{ marginTop: 0, color: "#1e293b", fontSize: "20px" }}>Create Order from Inquiry</h3>
+                        <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
+                            Finalize terms and convert this inquiry into a binding order.
+                        </p>
+
+                        <form onSubmit={handleCreateOrder}>
+                            <div style={{ marginBottom: "15px" }}>
+                                <label style={{ display: "block", fontSize: "12px", color: "#64748b", fontWeight: "600", marginBottom: "5px" }}>
+                                    Final Quantity
+                                </label>
+                                <input
+                                    type="number"
+                                    value={orderData.finalQuantity}
+                                    onChange={(e) => setOrderData({ ...orderData, finalQuantity: e.target.value })}
+                                    required
+                                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: "15px" }}>
+                                <label style={{ display: "block", fontSize: "12px", color: "#64748b", fontWeight: "600", marginBottom: "5px" }}>
+                                    Final Unit Price (INR)
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={orderData.finalPrice}
+                                    onChange={(e) => setOrderData({ ...orderData, finalPrice: e.target.value })}
+                                    required
+                                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: "20px" }}>
+                                <label style={{ display: "block", fontSize: "12px", color: "#64748b", fontWeight: "600", marginBottom: "5px" }}>
+                                    Shipping Terms
+                                </label>
+                                <select
+                                    value={orderData.shippingTerms}
+                                    onChange={(e) => setOrderData({ ...orderData, shippingTerms: e.target.value })}
+                                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}
+                                >
+                                    <option value="FOB">FOB - Free On Board</option>
+                                    <option value="CIF">CIF - Cost, Insurance, and Freight</option>
+                                    <option value="EXW">EXW - Ex Works</option>
+                                    <option value="DDP">DDP - Delivered Duty Paid</option>
+                                </select>
+                            </div>
+
+                            <div style={{ padding: "15px", backgroundColor: "#f8fafc", borderRadius: "8px", marginBottom: "20px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", marginBottom: "5px" }}>
+                                    <span>Product Amount:</span>
+                                    <span>₹{(orderData.finalQuantity * orderData.finalPrice || 0).toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#166534", marginBottom: "5px" }}>
+                                    <span>Shipping Charge:</span>
+                                    <span>₹500.00</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#1e293b", fontWeight: "700", borderTop: "1px solid #e2e8f0", paddingTop: "5px" }}>
+                                    <span>Total Contract Value:</span>
+                                    <span>₹{((orderData.finalQuantity * orderData.finalPrice || 0) + 500).toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOrderModal(false)}
+                                    style={{ padding: "10px 20px", borderRadius: "6px", border: "1px solid #e2e8f0", backgroundColor: "#fff", color: "#64748b", cursor: "pointer" }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    style={{ padding: "10px 20px", borderRadius: "6px", border: "none", backgroundColor: "#10b981", color: "#fff", cursor: "pointer", fontWeight: "600" }}
+                                >
+                                    Create Contract Order
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );
 };
 
 export default InquiryDetail;
-

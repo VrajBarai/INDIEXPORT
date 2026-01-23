@@ -17,13 +17,9 @@ public class InquiryDto {
     private Long productId;
     private String productName;
     private String productCategory;
-    private Integer requestedQuantity;
     private Inquiry.InquiryStatus status;
     private String message;
     private String shippingOption;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-
-
-

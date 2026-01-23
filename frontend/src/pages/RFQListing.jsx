@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAvailableRFQs } from "../services/rfqService";
 import { getSellerProfile } from "../services/sellerService";
+import SellerSidebar from "../components/SellerSidebar";
 
 const RFQListing = () => {
     const [rfqs, setRfqs] = useState([]);
@@ -60,213 +61,175 @@ const RFQListing = () => {
 
     if (loading) {
         return (
-            <div style={{ textAlign: "center", padding: "50px", color: "#666" }}>
-                <div style={{ fontSize: "18px" }}>Loading RFQs...</div>
+            <div className="dashboard-container">
+                <SellerSidebar />
+                <div className="main-content" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <div className="loader"></div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div style={{ padding: "30px", backgroundColor: "#f8fafc", minHeight: "100vh" }}>
-            {/* Header */}
-            <div style={{ marginBottom: "30px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="dashboard-container">
+            <SellerSidebar />
+
+            <div className="main-content">
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
                     <div>
-                        <h2 style={{ color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
-                            Request for Quotation (RFQ)
-                            {isAdvanced && (
-                                <span style={{
-                                    backgroundColor: "#fef3c7",
-                                    color: "#92400e",
-                                    padding: "4px 10px",
-                                    borderRadius: "20px",
-                                    fontSize: "12px",
-                                    fontWeight: "bold",
-                                    border: "1px solid #fcd34d"
-                                }}>
-                                    PRIORITY SELLER
-                                </span>
-                            )}
-                        </h2>
-                        <p style={{ color: "#64748b", margin: "5px 0 0" }}>
+                        <h2 style={{ margin: 0 }}>Request for Quotation (RFQ)</h2>
+                        <p style={{ color: "var(--text-secondary)", margin: "0.25rem 0 0" }}>
                             Browse buyer requirements and submit your quotations
                         </p>
                     </div>
+                    {isAdvanced && (
+                        <span className="badge badge-warning" style={{ border: "1px solid #fcd34d" }}>
+                            PRIORITY SELLER
+                        </span>
+                    )}
                 </div>
-            </div>
 
-            {error && (
-                <div style={{
-                    backgroundColor: "#fef2f2",
-                    color: "#b91c1c",
-                    padding: "12px 20px",
-                    borderRadius: "8px",
-                    marginBottom: "20px",
-                    border: "1px solid #fee2e2"
-                }}>
-                    {error}
-                </div>
-            )}
-
-            {/* RFQs List */}
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(400px, 1fr))",
-                gap: "20px"
-            }}>
-                {rfqs.length === 0 ? (
-                    <div style={{
-                        gridColumn: "1 / -1",
-                        textAlign: "center",
-                        padding: "60px",
-                        backgroundColor: "#fff",
-                        borderRadius: "12px",
-                        border: "1px solid #e2e8f0"
+                {error && (
+                    <div className="card" style={{
+                        backgroundColor: "var(--error-bg)",
+                        color: "var(--error-text)",
+                        borderColor: "var(--error)",
+                        padding: "1rem",
+                        marginBottom: "1.5rem"
                     }}>
-                        <div style={{ fontSize: "40px", marginBottom: "10px" }}>📋</div>
-                        <p style={{ margin: 0, color: "#94a3b8" }}>No RFQs available at the moment</p>
+                        {error}
                     </div>
-                ) : (
-                    rfqs.map((rfq) => {
-                        const expiringSoon = isExpiringSoon(rfq.expiryDate);
-                        const expired = isExpired(rfq.expiryDate);
-
-                        return (
-                            <div
-                                key={rfq.id}
-                                onClick={() => navigate(`/seller/rfqs/${rfq.id}`)}
-                                style={{
-                                    backgroundColor: "#fff",
-                                    borderRadius: "12px",
-                                    border: "1px solid #e2e8f0",
-                                    padding: "20px",
-                                    cursor: "pointer",
-                                    transition: "all 0.2s",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                    position: "relative"
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = "translateY(-2px)";
-                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = "translateY(0)";
-                                    e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
-                                }}
-                            >
-                                {rfq.hasResponded && (
-                                    <div style={{
-                                        position: "absolute",
-                                        top: "15px",
-                                        right: "15px",
-                                        backgroundColor: "#dcfce7",
-                                        color: "#166534",
-                                        padding: "4px 8px",
-                                        borderRadius: "12px",
-                                        fontSize: "11px",
-                                        fontWeight: "600"
-                                    }}>
-                                        Responded
-                                    </div>
-                                )}
-
-                                {expiringSoon && !expired && (
-                                    <div style={{
-                                        position: "absolute",
-                                        top: "15px",
-                                        left: "15px",
-                                        backgroundColor: "#fef3c7",
-                                        color: "#92400e",
-                                        padding: "4px 8px",
-                                        borderRadius: "12px",
-                                        fontSize: "11px",
-                                        fontWeight: "600"
-                                    }}>
-                                        Expiring Soon
-                                    </div>
-                                )}
-
-                                <h3 style={{
-                                    color: "#1e293b",
-                                    marginTop: 0,
-                                    marginBottom: "12px",
-                                    fontSize: "18px",
-                                    fontWeight: "600"
-                                }}>
-                                    {rfq.productRequirement}
-                                </h3>
-
-                                <div style={{ marginBottom: "15px" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                                        <span style={{ fontSize: "12px", color: "#64748b" }}>Quantity:</span>
-                                        <span style={{ fontSize: "14px", color: "#1e293b", fontWeight: "600" }}>
-                                            {rfq.quantity} units
-                                        </span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                                        <span style={{ fontSize: "12px", color: "#64748b" }}>Delivery Country:</span>
-                                        <span style={{ fontSize: "14px", color: "#1e293b" }}>
-                                            {rfq.deliveryCountry}
-                                        </span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                                        <span style={{ fontSize: "12px", color: "#64748b" }}>Buyer:</span>
-                                        <span style={{ fontSize: "14px", color: "#1e293b" }}>
-                                            {rfq.buyerName} ({rfq.buyerCountry})
-                                        </span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                        <span style={{ fontSize: "12px", color: "#64748b" }}>Expires:</span>
-                                        <span style={{
-                                            fontSize: "14px",
-                                            color: expired ? "#ef4444" : expiringSoon ? "#f59e0b" : "#10b981",
-                                            fontWeight: "600"
-                                        }}>
-                                            {formatDate(rfq.expiryDate)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {rfq.description && (
-                                    <div style={{
-                                        backgroundColor: "#f8fafc",
-                                        padding: "12px",
-                                        borderRadius: "8px",
-                                        marginBottom: "15px",
-                                        fontSize: "13px",
-                                        color: "#475569",
-                                        maxHeight: "80px",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis"
-                                    }}>
-                                        {rfq.description}
-                                    </div>
-                                )}
-
-                                <div style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    paddingTop: "15px",
-                                    borderTop: "1px solid #f1f5f9"
-                                }}>
-                                    <span style={{ fontSize: "12px", color: "#94a3b8" }}>
-                                        {rfq.responseCount || 0} responses
-                                    </span>
-                                    <span style={{ color: "#2563eb", fontSize: "14px", fontWeight: "600" }}>
-                                        View Details →
-                                    </span>
-                                </div>
-                            </div>
-                        );
-                    })
                 )}
+
+                {/* RFQs List */}
+                <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                    gap: "1.5rem"
+                }}>
+                    {rfqs.length === 0 ? (
+                        <div className="card" style={{
+                            gridColumn: "1 / -1",
+                            textAlign: "center",
+                            padding: "4rem",
+                            color: "var(--text-muted)"
+                        }}>
+                            <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>📋</div>
+                            <p style={{ margin: 0 }}>No RFQs available at the moment</p>
+                        </div>
+                    ) : (
+                        rfqs.map((rfq) => {
+                            const expiringSoon = isExpiringSoon(rfq.expiryDate);
+                            const expired = isExpired(rfq.expiryDate);
+
+                            return (
+                                <div
+                                    key={rfq.id}
+                                    className="card"
+                                    onClick={() => navigate(`/seller/rfqs/${rfq.id}`)}
+                                    style={{
+                                        cursor: "pointer",
+                                        position: "relative",
+                                        height: "100%",
+                                        display: "flex",
+                                        flexDirection: "column"
+                                    }}
+                                >
+                                    {rfq.hasResponded && (
+                                        <div style={{
+                                            position: "absolute",
+                                            top: "1rem",
+                                            right: "1rem",
+                                        }}>
+                                            <span className="badge badge-active">Responded</span>
+                                        </div>
+                                    )}
+
+                                    {expiringSoon && !expired && (
+                                        <div style={{
+                                            position: "absolute",
+                                            top: "1rem",
+                                            left: "1rem",
+                                        }}>
+                                            <span className="badge badge-warning">Expiring Soon</span>
+                                        </div>
+                                    )}
+
+                                    <h3 style={{
+                                        margin: "0 0 1rem",
+                                        fontSize: "1.125rem",
+                                        paddingRight: rfq.hasResponded ? "5rem" : "0"
+                                    }}>
+                                        {rfq.productRequirement}
+                                    </h3>
+
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Quantity:</span>
+                                            <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>{rfq.quantity} units</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Destination:</span>
+                                            <span style={{ fontSize: "0.875rem" }}>{rfq.deliveryCountry}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Buyer:</span>
+                                            <span style={{ fontSize: "0.875rem" }}>{rfq.buyerName} ({rfq.buyerCountry})</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Expires:</span>
+                                            <span style={{
+                                                fontSize: "0.875rem",
+                                                color: expired ? "var(--error)" : expiringSoon ? "var(--warning)" : "var(--success)",
+                                                fontWeight: 600
+                                            }}>
+                                                {formatDate(rfq.expiryDate)}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {rfq.description && (
+                                        <div style={{
+                                            backgroundColor: "var(--bg-body)",
+                                            padding: "0.75rem",
+                                            borderRadius: "var(--radius-md)",
+                                            marginBottom: "1rem",
+                                            fontSize: "0.875rem",
+                                            color: "var(--text-secondary)",
+                                            flex: 1,
+                                            overflow: "hidden",
+                                            display: "-webkit-box",
+                                            WebkitLineClamp: 3,
+                                            WebkitBoxOrient: "vertical"
+                                        }}>
+                                            {rfq.description}
+                                        </div>
+                                    )}
+
+                                    <div style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        marginTop: "auto",
+                                        paddingTop: "1rem",
+                                        borderTop: "1px solid var(--border)"
+                                    }}>
+                                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                                            {rfq.responseCount || 0} responses
+                                        </span>
+                                        <span style={{ color: "var(--primary)", fontSize: "0.875rem", fontWeight: 600 }}>
+                                            View Details →
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
             </div>
         </div>
     );
 };
 
 export default RFQListing;
-
-
-

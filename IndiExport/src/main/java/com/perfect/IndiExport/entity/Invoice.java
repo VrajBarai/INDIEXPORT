@@ -25,7 +25,11 @@ public class Invoice {
     private String invoiceNumber; // Auto-generated: INV-YYYYMMDD-XXXX
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inquiry_id", nullable = false, unique = true)
+    @JoinColumn(name = "order_id", unique = true)
+    private Order order;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inquiry_id", unique = true)
     private Inquiry inquiry;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -78,6 +82,3 @@ public class Invoice {
         CANCELLED
     }
 }
-
-
-

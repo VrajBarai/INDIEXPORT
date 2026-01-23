@@ -16,6 +16,10 @@ export const deleteProduct = (id) => {
     return api.delete(`/products/${id}`);
 };
 
+export const toggleProductStatus = (id, active) => {
+    return api.put(`/products/${id}/status?active=${active}`);
+};
+
 export const getAllCountries = () => {
     return api.get("/products/countries");
 };

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { logout } from "../services/authService";
 import { getBuyerProfile } from "../services/buyerService";
-import { getMyInquiries } from "../services/inquiryService";
+import { getBuyerInquiries } from "../services/inquiryService";
 import { getAvailableRFQs } from "../services/rfqService";
 import { getBuyerChatRooms } from "../services/chatService";
 
@@ -24,11 +24,11 @@ const BuyerDashboard = () => {
             setError("");
             const [profileRes, inquiriesRes, rfqsRes, chatsRes] = await Promise.all([
                 getBuyerProfile().catch(() => ({ data: null })),
-                getMyInquiries().catch(() => ({ data: [] })),
+                getBuyerInquiries().catch(() => ({ data: [] })),
                 getAvailableRFQs().catch(() => ({ data: [] })),
                 getBuyerChatRooms().catch(() => ({ data: [] }))
             ]);
-            
+
             setProfile(profileRes.data);
             setInquiries(inquiriesRes.data || []);
             setRfqs(rfqsRes.data || []);
@@ -48,10 +48,9 @@ const BuyerDashboard = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case "NEW": return { bg: "#dbeafe", color: "#1e40af" };
-            case "REPLIED": return { bg: "#dcfce7", color: "#166534" };
-            case "CLOSED": return { bg: "#f3f4f6", color: "#6b7280" };
             case "OPEN": return { bg: "#dbeafe", color: "#1e40af" };
+            case "NEGOTIATING": return { bg: "#dcfce7", color: "#166534" };
+            case "CONVERTED": return { bg: "#fef9c3", color: "#854d0e" };
             default: return { bg: "#f3f4f6", color: "#6b7280" };
         }
     };
@@ -78,10 +77,10 @@ const BuyerDashboard = () => {
     return (
         <div className="dashboard-container" style={{ display: "flex", minHeight: "100vh", backgroundColor: "#f8fafc" }}>
             {/* Sidebar */}
-            <div className="sidebar" style={{ 
-                width: "250px", 
-                backgroundColor: "#fff", 
-                padding: "20px", 
+            <div className="sidebar" style={{
+                width: "250px",
+                backgroundColor: "#fff",
+                padding: "20px",
                 borderRight: "1px solid #e2e8f0",
                 display: "flex",
                 flexDirection: "column",
@@ -101,18 +100,21 @@ const BuyerDashboard = () => {
                             <Link to="/buyer/inquiries" style={{ color: "#666", textDecoration: "none" }}>My Inquiries</Link>
                         </li>
                         <li style={{ padding: "10px", marginTop: "5px" }}>
+                            <Link to="/buyer/orders" style={{ color: "#666", textDecoration: "none" }}>My Orders</Link>
+                        </li>
+                        <li style={{ padding: "10px", marginTop: "5px" }}>
                             <Link to="/buyer/rfqs" style={{ color: "#666", textDecoration: "none" }}>My RFQs</Link>
                         </li>
                     </ul>
                 </div>
-                <button 
+                <button
                     onClick={handleLogout}
-                    style={{ 
-                        padding: "10px 16px", 
-                        backgroundColor: "#d32f2f", 
-                        color: "#fff", 
-                        border: "none", 
-                        borderRadius: "6px", 
+                    style={{
+                        padding: "10px 16px",
+                        backgroundColor: "#d32f2f",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
                         cursor: "pointer",
                         fontWeight: "600",
                         marginTop: "20px"
@@ -156,6 +158,10 @@ const BuyerDashboard = () => {
                     <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
                         <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px", fontWeight: "600" }}>RFQs POSTED</div>
                         <div style={{ fontSize: "32px", fontWeight: "700", color: "#1e293b" }}>{rfqs.length}</div>
+                    </div>
+                    <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+                        <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px", fontWeight: "600" }}>MY ORDERS</div>
+                        <div style={{ fontSize: "32px", fontWeight: "700", color: "#1e293b" }}>{/* Optional: Add order count */} - </div>
                     </div>
                     <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
                         <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px", fontWeight: "600" }}>ACTIVE CHATS</div>
@@ -213,8 +219,8 @@ const BuyerDashboard = () => {
                                         transition: "all 0.2s",
                                         cursor: "pointer"
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
                                     >
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                                             <div style={{ flex: 1 }}>
@@ -237,7 +243,7 @@ const BuyerDashboard = () => {
                                             </span>
                                         </div>
                                         <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "8px" }}>
-                                            Quantity: {inquiry.requestedQuantity} • {formatDate(inquiry.createdAt)}
+                                            {formatDate(inquiry.createdAt)}
                                         </div>
                                     </div>
                                 );
@@ -274,8 +280,8 @@ const BuyerDashboard = () => {
                                         transition: "all 0.2s",
                                         cursor: "pointer"
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
                                     >
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                                             <div style={{ flex: 1 }}>
@@ -340,8 +346,8 @@ const BuyerDashboard = () => {
                                     transition: "all 0.2s",
                                     cursor: "pointer"
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#fff"}
                                 >
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                                         <div style={{ flex: 1 }}>

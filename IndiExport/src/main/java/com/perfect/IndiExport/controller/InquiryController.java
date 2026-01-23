@@ -24,31 +24,35 @@ public class InquiryController {
     private final InquiryService inquiryService;
     private final UserRepository userRepository;
 
-    @GetMapping
-    public ResponseEntity<List<InquiryDto>> getMyInquiries(
+    @GetMapping("/buyer")
+    public ResponseEntity<List<InquiryDto>> getBuyerInquiries(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) Inquiry.InquiryStatus status) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         List<InquiryDto> inquiries;
-        boolean isSeller = user.getRole().name().contains("SELLER");
-        
-        if (isSeller) {
-            if (status != null) {
-                inquiries = inquiryService.getSellerInquiriesByStatus(user, status);
-            } else {
-                inquiries = inquiryService.getSellerInquiries(user);
-            }
+        if (status != null) {
+            inquiries = inquiryService.getBuyerInquiriesByStatus(user, status);
         } else {
-            // Buyer
-            if (status != null) {
-                inquiries = inquiryService.getBuyerInquiriesByStatus(user, status);
-            } else {
-                inquiries = inquiryService.getBuyerInquiries(user);
-            }
+            inquiries = inquiryService.getBuyerInquiries(user);
         }
+        return ResponseEntity.ok(inquiries);
+    }
 
+    @GetMapping("/seller")
+    public ResponseEntity<List<InquiryDto>> getSellerInquiries(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(required = false) Inquiry.InquiryStatus status) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<InquiryDto> inquiries;
+        if (status != null) {
+            inquiries = inquiryService.getSellerInquiriesByStatus(user, status);
+        } else {
+            inquiries = inquiryService.getSellerInquiries(user);
+        }
         return ResponseEntity.ok(inquiries);
     }
 
@@ -61,13 +65,13 @@ public class InquiryController {
 
         InquiryDto inquiry;
         boolean isSeller = user.getRole().name().contains("SELLER");
-        
+
         if (isSeller) {
             inquiry = inquiryService.getInquiryDetails(user, id);
         } else {
             inquiry = inquiryService.getBuyerInquiryDetails(user, id);
         }
-        
+
         return ResponseEntity.ok(inquiry);
     }
 
@@ -79,24 +83,29 @@ public class InquiryController {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        InquiryDto inquiry = inquiryService.replyToInquiry(user, id, request);
+        InquiryDto inquiry;
+        if (user.getRole().name().contains("SELLER")) {
+            inquiry = inquiryService.replyToInquiry(user, id, request);
+        } else {
+            inquiry = inquiryService.replyToInquiryByBuyer(user, id, request);
+        }
+
         return ResponseEntity.ok(inquiry);
     }
 
-    @PutMapping("/{id}/status")
-    public ResponseEntity<InquiryDto> updateInquiryStatus(
+    @PatchMapping("/{id}/close")
+    public ResponseEntity<InquiryDto> closeInquiry(
             @PathVariable Long id,
-            @RequestParam Inquiry.InquiryStatus status,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        InquiryDto inquiry = inquiryService.updateInquiryStatus(user, id, status);
+        InquiryDto inquiry = inquiryService.updateInquiryStatus(user, id, Inquiry.InquiryStatus.CLOSED);
         return ResponseEntity.ok(inquiry);
     }
 
     // Buyer endpoints
-    @PostMapping
+    @PostMapping("/buyer")
     public ResponseEntity<InquiryDto> createInquiry(
             @RequestBody InquiryRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -130,6 +139,3 @@ public class InquiryController {
         return ResponseEntity.ok("Inquiry deleted successfully");
     }
 }
-
-
-

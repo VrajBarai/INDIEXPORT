@@ -9,17 +9,24 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "inquiries")
+@Table(name = "orders")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Inquiry {
+public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String orderNumber;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inquiry_id", unique = true)
+    private Inquiry inquiry;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "buyer_id", nullable = false)
@@ -33,21 +40,28 @@ public class Inquiry {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "requested_quantity", nullable = false)
+    @Column(name = "final_quantity", nullable = false)
+    private Integer finalQuantity;
+
+    @Column(nullable = false)
+    private BigDecimal finalPrice;
+
+    @Column(nullable = false)
+    private String currency = "INR";
+
+    private String shippingTerms;
+
+    @Column(nullable = false)
     @Builder.Default
-    private Integer requestedQuantity = 0;
+    private BigDecimal shippingCost = BigDecimal.ZERO;
+
+    @Column(nullable = false)
+    private BigDecimal totalAmount; // finalPrice * qty + shippingCost
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private InquiryStatus status = InquiryStatus.OPEN;
-
-    @Column(columnDefinition = "TEXT")
-    private String message;
-
-    private String shippingOption; // e.g., "Courier", "Air Freight", "Sea Freight", "Pickup"
-
-    private String buyerCountry;
+    private OrderStatus status = OrderStatus.CREATED;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -55,10 +69,11 @@ public class Inquiry {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    public enum InquiryStatus {
-        OPEN,
-        NEGOTIATING,
-        CLOSED,
-        CONVERTED
+    public enum OrderStatus {
+        CREATED,
+        CONFIRMED,
+        SHIPPED,
+        COMPLETED,
+        CANCELLED
     }
 }

@@ -11,4 +11,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findBySellerId(Long sellerId);
 
     long countBySellerId(Long sellerId);
+
+    long countBySellerIdAndActiveTrue(Long sellerId);
 }

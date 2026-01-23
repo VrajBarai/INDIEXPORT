@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getChatMessages, sendMessage, markMessagesAsRead, getOrCreateChatRoom } from "../services/chatService";
 import { getSellerProfile } from "../services/sellerService";
+import { getBuyerProfile } from "../services/buyerService";
 // Note: Install WebSocket dependencies: npm install sockjs-client @stomp/stompjs
 // import SockJS from "sockjs-client";
 // import { Client } from "@stomp/stompjs";
@@ -9,12 +10,14 @@ const ChatWindow = ({ inquiryId, onClose }) => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [chatRoom, setChatRoom] = useState(null);
-    const [seller, setSeller] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [fileInput, setFileInput] = useState(null);
     const messagesEndRef = useRef(null);
     const stompClientRef = useRef(null);
+
+    const userRole = localStorage.getItem("role") || "";
 
     useEffect(() => {
         initializeChat();
@@ -32,12 +35,12 @@ const ChatWindow = ({ inquiryId, onClose }) => {
     const initializeChat = async () => {
         try {
             setError("");
-            const [roomRes, sellerRes] = await Promise.all([
+            const [roomRes, profileRes] = await Promise.all([
                 getOrCreateChatRoom(inquiryId),
-                getSellerProfile(),
+                userRole.includes("SELLER") ? getSellerProfile() : getBuyerProfile(),
             ]);
             setChatRoom(roomRes.data);
-            setSeller(sellerRes.data);
+            setCurrentUser(profileRes.data.user);
 
             // Load existing messages
             const messagesRes = await getChatMessages(roomRes.data.id);
@@ -80,14 +83,14 @@ const ChatWindow = ({ inquiryId, onClose }) => {
         stompClient.activate();
         stompClientRef.current = stompClient;
         */
-        
+
         // Polling fallback - refresh messages every 3 seconds
         const pollInterval = setInterval(() => {
             getChatMessages(roomId).then(res => {
                 setMessages(res.data || []);
             }).catch(console.error);
         }, 3000);
-        
+
         return () => clearInterval(pollInterval);
     };
 
@@ -108,7 +111,7 @@ const ChatWindow = ({ inquiryId, onClose }) => {
         } catch (err) {
             const errorMsg = err.response?.data?.message || "Failed to send message";
             setError(errorMsg);
-            
+
             // Show upgrade modal if BASIC seller tries to send file
             if (errorMsg.includes("ADVANCED") || errorMsg.includes("upgrade")) {
                 alert("File sharing is only available for ADVANCED sellers. Please upgrade to use this feature.");
@@ -121,7 +124,7 @@ const ChatWindow = ({ inquiryId, onClose }) => {
         if (!file) return;
 
         // Check if seller is BASIC
-        if (seller?.sellerMode === "BASIC") {
+        if (userRole.includes("SELLER") && currentUser?.sellerMode === "BASIC") {
             e.target.value = "";
             alert("File sharing is only available for ADVANCED sellers. Please upgrade to use this feature.");
             return;
@@ -140,7 +143,7 @@ const ChatWindow = ({ inquiryId, onClose }) => {
         return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
     };
 
-    const isAdvanced = seller?.sellerMode === "ADVANCED";
+    const isAdvanced = userRole.includes("SELLER") && currentUser?.sellerMode === "ADVANCED";
 
     if (loading) {
         return (
@@ -213,42 +216,43 @@ const ChatWindow = ({ inquiryId, onClose }) => {
                 )}
 
                 {messages.map((msg) => {
-                    const isSeller = msg.senderType === "SELLER";
+                    const isMe = msg.senderId === currentUser?.id;
+                    const isSellerMessage = msg.senderType === "SELLER";
                     return (
                         <div
                             key={msg.id}
                             style={{
                                 display: "flex",
-                                justifyContent: isSeller ? "flex-end" : "flex-start",
+                                justifyContent: isMe ? "flex-end" : "flex-start",
                                 marginBottom: "15px"
                             }}
                         >
                             <div style={{
                                 maxWidth: "70%",
-                                backgroundColor: isSeller ? "#2563eb" : "#fff",
-                                color: isSeller ? "#fff" : "#1e293b",
+                                backgroundColor: isMe ? "#2563eb" : "#fff",
+                                color: isMe ? "#fff" : "#1e293b",
                                 padding: "12px 16px",
                                 borderRadius: "18px",
                                 boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
                             }}>
                                 <div style={{ fontSize: "12px", opacity: 0.8, marginBottom: "4px" }}>
-                                    {msg.senderName}
+                                    {msg.senderName} {isMe && "(You)"}
                                 </div>
                                 <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                     {msg.message}
                                 </div>
                                 {msg.fileName && (
-                                    <div style={{ marginTop: "8px", padding: "8px", backgroundColor: isSeller ? "rgba(255,255,255,0.2)" : "#f1f5f9", borderRadius: "6px" }}>
+                                    <div style={{ marginTop: "8px", padding: "8px", backgroundColor: isMe ? "rgba(255,255,255,0.2)" : "#f1f5f9", borderRadius: "6px" }}>
                                         <div style={{ fontSize: "12px", fontWeight: "600" }}>📎 {msg.fileName}</div>
                                         {msg.fileUrl && (
-                                            <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: isSeller ? "#fff" : "#2563eb", fontSize: "12px" }}>
+                                            <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: isMe ? "#fff" : "#2563eb", fontSize: "12px" }}>
                                                 Download
                                             </a>
                                         )}
                                     </div>
                                 )}
                                 <div style={{ fontSize: "11px", opacity: 0.7, marginTop: "4px", textAlign: "right" }}>
-                                    {formatTime(msg.createdAt)} {msg.isRead && isSeller && "✓✓"}
+                                    {formatTime(msg.createdAt)} {msg.isRead && isMe && "✓✓"}
                                 </div>
                             </div>
                         </div>
